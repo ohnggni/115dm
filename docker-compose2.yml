@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  flask_app:
+    image: 115_offdn
+    build: .
+    ports:
+      - "5555:5000"
+    environment:
+      UID: "uid"
+      CID: "cid"
+      SEID: "seid"
+      TZ: "Asia/Seoul"
