@@ -7,8 +7,8 @@
 1. 이 레포지토리를 클론합니다.
 
    ```sh
-   git clone https://github.com/ohnggni/115offdn_manager.git
-   cd 115offdn_manager
+   git clone https://github.com/ohnggni/115dm.git
+   cd 115dm
 
 2. docker-compose.yml 파일을 수정합니다. (쿠키값을 본인 것에 맞게 넣고, 필요 시 포트도 수정합니다)
 3. Docker Compose를 사용하여 컨테이너를 빌드하고 실행합니다.
