@@ -21,4 +21,5 @@
 
 5. 애플리케이션이 실행되면 웹 브라우저에서 http://[ip_address]:5555로 접속하여 확인할 수 있습니다.
    
-   <img width="987" alt="스크린샷 2024-07-31 16 17 30" src="https://github.com/user-attachments/assets/77177b4e-d2b0-4415-8281-981ccc4ba23f">
+<img width="969" alt="스크린샷 2024-08-02 16 29 49" src="https://github.com/user-attachments/assets/0502b5d1-cf02-494b-bb3e-e2475907568f">
+
