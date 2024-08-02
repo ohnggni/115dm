@@ -1,4 +1,4 @@
-# 115offdn_manager
+# 115DM
 
 이 프로젝트는 Docker Compose를 사용하여 Flask 애플리케이션을 실행하는 방법을 설명합니다.
 
