@@ -17,7 +17,7 @@
 
 4. Docker Compose를 사용하여 컨테이너를 실행합니다.
    ```sh
-   docker-compose up
+   docker-compose up -d
 
 5. 애플리케이션이 실행되면 웹 브라우저에서 http://[ip_address]:5555로 접속하여 확인할 수 있습니다.
    
