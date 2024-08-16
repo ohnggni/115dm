@@ -20,7 +20,7 @@
    docker-compose up -d
 
 5. 애플리케이션이 실행되면 웹 브라우저에서 http://[ip_address]:5556로 접속하여 확인할 수 있습니다.
-6. 
+   
 <img width="1329" alt="스크린샷 2024-08-16 15 34 54" src="https://github.com/user-attachments/assets/35a8fc5f-5fef-44f3-822b-1e5f1f9730d0">
 
 
@@ -37,6 +37,7 @@
 1) 완료 작업 목록을 주기적으로 삭제하는 명령(CURL활용):
    ```sh
    crontab -e
+   
    ```sh
    */5 * * * * curl -X POST http://[ip:port]/tasks/clear_completed
 
