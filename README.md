@@ -20,7 +20,9 @@
    docker-compose up -d
 
 5. 애플리케이션이 실행되면 웹 브라우저에서 http://[ip_address]:5556로 접속하여 확인할 수 있습니다.
-![image](https://github.com/user-attachments/assets/23db3521-c2c2-4039-9b44-4c6478629a8a)
+6. 
+<img width="1329" alt="스크린샷 2024-08-16 15 34 54" src="https://github.com/user-attachments/assets/35a8fc5f-5fef-44f3-822b-1e5f1f9730d0">
+
 
 
 [V2] 주요 변경사항
