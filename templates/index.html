@@ -111,17 +111,41 @@
             align-items: center;
             gap: 10px;
         }
+        .table {
+            table-layout: fixed; /* 테이블 레이아웃을 고정 */
+            width: 100%; /* 테이블 전체 너비 */
+        }
+        .table th, .table td {
+            white-space: nowrap; /* 텍스트 줄바꿈 방지 */
+            overflow: hidden; /* 넘치는 텍스트 숨김 */
+            text-overflow: ellipsis; /* 넘치는 텍스트를 생략 부호(...)로 표시 */
+            vertical-align: middle; /* 텍스트 세로 정렬 */
+        }
+        .table th:nth-child(1), .table td:nth-child(1) {
+            width: 25%; /* 첫 번째 열의 최대 너비 20%로 설정 */
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container-fluid">
         <h1 class="my-4 custom-title">
             115 Cloud Off-Download Manager
           </h1>
         <br>
         <h3 class="custom-small-title">Add Tasks</h3>
         <form id="addTaskForm">
-            <textarea class="form-control mb-2" id="urls" name="urls" placeholder="Enter magnet links separated by semicolons (;)"></textarea>
+            <!-- Folder Selection Dropdown -->
+            <div class="form-group">
+                <label for="folderSelect">Select Folder to Save:</label>
+                <!--select class="form-control" id="folderSelect" name="folder_id"-->
+                <select class="form-control mb-2" id="folderSelect" name="wp_path_id">
+                    <option value="" disabled>Select a folder</option>
+                    {% for folder in folders %}
+                        <option value="{{ folder.id }}">{{ folder.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <textarea class="form-control mb-2" id="urls" name="urls" placeholder="Enter magnet links separated by Enter"></textarea>
             <button type="submit" class="btn btn-success">Add Tasks</button>
             <span id="loadingIcon" class="spinner-border spinner-border-sm text-primary" role="status" style="display: none;"></span>
         </form>
@@ -169,6 +193,7 @@
                         <th>End (Complete)</th>
                         <th>Original Size</th>
                         <th>Progress</th>
+                        <th>Saved Folder</th> <!-- 폴더 컬럼 추가 -->
                         <th>Action</th>
                     </tr>
                 </thead>
@@ -183,10 +208,43 @@
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
+    <!-- JavaScript functions -->
     <script>
+        async function fetchFolders() {
+            const response = await fetch('/folders');
+            const data = await response.json();
+            const folderSelect = document.getElementById('folderSelect');
+            folderSelect.innerHTML = '';  // 초기화
+
+            const defaultFolderId = "{{ default_download_path_id }}".trim();
+            console.log('Default Folder ID:', defaultFolderId);
+
+            if (data.folders) {
+                data.folders.forEach((folder, index) => {
+                    const option = document.createElement('option');
+                    option.value = folder.id;
+                    option.textContent = folder.name;
+                    folderSelect.appendChild(option);
+
+                    if (folder.id.trim() === defaultFolderId) {
+                        folderSelect.selectedIndex = index;
+                        console.log(`Selected Index: ${index}, Option Value: ${folder.id}`);
+                    } else {
+                        console.log(`No match for index ${index}: ${folder.id} !== ${defaultFolderId}`);
+                    }
+                });
+            } else {
+                const option = document.createElement('option');
+                option.textContent = 'No folders available';
+                folderSelect.appendChild(option);
+            }
+        }
+
         async function fetchTasks() {
             const response = await fetch('/tasks');
             const data = await response.json();
+            console.log(data);
+
             const tasks = data.tasks;
             const runningCount = data.running_count;
             const completeCount = data.complete_count;
@@ -194,7 +252,6 @@
             const tasksList = document.getElementById('tasks');
             tasksList.innerHTML = '';
             
-            // Update dashboard
             document.getElementById('runningCount').textContent = runningCount;
             document.getElementById('completeCount').textContent = completeCount;
 
@@ -213,7 +270,9 @@
                                 <span>${task.percent}%</span>
                             </div>
                         </div>
-                    </td>`;
+                    </td>
+                    <td class="${statusClass}">${task.folder_name || 'N/A'}</td>
+                `;
                 const deleteButton = document.createElement('button');
                 deleteButton.classList.add('btn', 'btn-secondary', 'btn-sm');
                 deleteButton.textContent = 'Remove';
@@ -227,42 +286,70 @@
                 tasksList.appendChild(tr);
             });
         }
-    
+
         async function clearCompletedTasks() {
             await fetch('/tasks/clear_completed', { method: 'POST' });
             fetchTasks();
         }
-    
-        document.getElementById('addTaskForm').onsubmit = async (e) => {
-            e.preventDefault();
-            const loadingIcon = document.getElementById('loadingIcon');
-            loadingIcon.style.display = 'inline-block'; // 로딩 아이콘 표시
-            const urls = document.getElementById('urls').value.split(';');
-            for (const url of urls) {
-                await fetch('/tasks/add', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ urls: url })
-                });
-                await new Promise(resolve => setTimeout(resolve, 3000)); // 3초 대기
-            }
-            document.getElementById('urls').value = '';
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            await fetchFolders();
             await fetchTasks();
-            loadingIcon.style.display = 'none'; // 로딩 아이콘 숨기기
-        };
-    
-        document.querySelector('.btn-refresh').addEventListener('click', async () => {
-            await fetchTasks();
+
+            setInterval(fetchTasks, 60000);
+
+            document.getElementById('addTaskForm').onsubmit = async (e) => {
+                e.preventDefault();
+                const loadingIcon = document.getElementById('loadingIcon');
+                loadingIcon.style.display = 'inline-block'; // 로딩 아이콘 표시
+
+                const urls = document.getElementById('urls').value.split('\n');  // 엔터로 구분된 URL들
+                const wp_path_id_element = document.getElementById('folderSelect'); // wp_path_id 요소 대신 folderSelect로 수정
+                
+                if (!wp_path_id_element) {
+                    alert("폴더 ID 요소를 찾을 수 없습니다.");
+                    loadingIcon.style.display = 'none';
+                    return;
+                }
+
+                const wp_path_id = wp_path_id_element.value;
+
+                if (!urls || !wp_path_id) {
+                    alert("URL과 폴더 ID를 확인하세요.");
+                    loadingIcon.style.display = 'none';
+                    return;
+                }
+
+                for (const url of urls) {
+                    const response = await fetch('/tasks/add', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ urls: url, wp_path_id: wp_path_id }) // 폴더 ID와 함께 전송
+                    });
+
+                    const result = await response.json();
+
+                    // 911 오류 발생 시 팝업 표시
+                    if (result.errno === 911) {
+                        alert("공식 웹으로 1회 오프라인 다운로드를 시도하여 Captcha를 해지하세요.");
+                        loadingIcon.style.display = 'none';
+                        return;
+                    }
+
+                    if (!response.ok) {
+                        alert(`Failed to add task. Server responded with status: ${response.status}`);
+                        loadingIcon.style.display = 'none';
+                        return;
+                    }
+
+                    await new Promise(resolve => setTimeout(resolve, 3000)); // 3초 대기
+                }
+
+                document.getElementById('urls').value = '';
+                await fetchTasks();
+                loadingIcon.style.display = 'none'; // 로딩 아이콘 숨기기
+            };
         });
-    
-        document.querySelector('.btn-clear').addEventListener('click', async () => {
-            await clearCompletedTasks();
-        });
-    
-        fetchTasks();
-    
-        // 1분마다 자동으로 fetchTasks 함수 호출
-        setInterval(fetchTasks, 60000);
-    </script>
+    </script>           
 </body>
 </html>
