@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   flask_app:
-    image: 115_offdn_v2
+    image: 115_offdn_v3
     build: .
     volumes:
       - ./data:/app/data  # 호스트 시스템의 ./data 디렉토리를 컨테이너의 /app/data에 마운트. task_times.json파일 저장을 위함. 필수임.
@@ -11,7 +11,7 @@ services:
     environment:
       P115_COOKIE: "UID=...;CID=...;SEID=..." # 본인의 세 가지 쿠키값을 이어서 작성
       UID: "user account of 115 cloud" # 본인의 115 클라우드 계정번호를 넣음 또는 UID의 처음 9자리
-      C_FolderId: "Default Download Folder ID" # 본인의 다운받을 기본 폴더를 ID를 넣음. 단 루트폴더 내 서브디렉토리 중 하나로 할 것
+      C_FolderId: "Default Download Folder ID" # 본인의 다운받을 기본 폴더 ID를 넣음.
       TZ: "Asia/Seoul"
     restart: unless-stopped
     logging:
