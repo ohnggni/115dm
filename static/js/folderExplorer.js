@@ -1,10 +1,12 @@
 // 폴더 목록 토글
 function toggleFolderList() {
     const folderListContainer = document.getElementById('folderListContainer');
+    const selectedPathDisplayElement = document.getElementById('selectedPathDisplay');
+    const currentPath = selectedPathDisplayElement.value;
+
     folderListContainer.style.display = folderListContainer.style.display === 'none' ? 'block' : 'none';
 
     if (folderListContainer.style.display === 'block') {
-        const currentPath = document.getElementById('selectedPathDisplay').value;
         fetchFolders(currentPath);  // 현재 선택된 경로에서 폴더 목록을 로드
     }
 }
@@ -26,38 +28,42 @@ async function fetchFolders(targetFolderName) {
         const folderListElement = document.getElementById('folderList');
         folderListElement.innerHTML = '';
 
-        // 상위 디렉토리로 이동 버튼 추가 (현재 경로가 루트가 아닐 때만)
+        // 상위 폴더로 이동 버튼 처리
         if (data.current_path !== '/') {
             const parentElement = document.createElement('div');
             parentElement.innerHTML = `<i class="bi bi-folder"></i> ..`;
             parentElement.classList.add('folder-item');
             parentElement.onclick = async () => {
-                await fetchFolders('..');  // 상위 폴더로 이동
+                await fetchFolders('..');
+                
+                // 상위 폴더로 이동 시 새로운 경로를 불러옴
+                const newPathResponse = await fetch('/get_full_path_name', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ folder_id: data.parent_folder_id })
+                });
 
-                // 루트로 돌아왔을 때 상위 폴더 이동 버튼 제거
-                if (data.current_path === '/') {
-                    document.getElementById('selectedPathDisplay').value = defaultDownloadPathName;
-                    document.getElementById('selectedPath').value = defaultDownloadPathId;
-                }
+                const newPathData = await newPathResponse.json();
+                const fullPath = newPathData.full_path_name !== 'N/A' ? newPathData.full_path_name : '/';
+                
+                document.getElementById('selectedPathDisplay').value = fullPath;
+                document.getElementById('selectedPath').value = data.parent_folder_id || '0';
             };
             folderListElement.appendChild(parentElement);
         } else {
-            // 루트 경로인 경우 default path를 다시 설정
-            document.getElementById('selectedPathDisplay').value = defaultDownloadPathName;
-            document.getElementById('selectedPath').value = defaultDownloadPathId;
+            // 루트 폴더에 있을 때
+            document.getElementById('selectedPathDisplay').value = '/';
+            document.getElementById('selectedPath').value = '0'; // 루트 폴더 ID 설정
         }
 
-        // 폴더 목록 표시 및 폴더 클릭 시 하위 디렉토리 불러오기
+        // 폴더 목록 표시
         data.folders.forEach(folder => {
             const folderElement = document.createElement('div');
             folderElement.innerHTML = `<i class="bi bi-folder"></i> ${folder.name}`;
             folderElement.classList.add('folder-item');
 
-            // 폴더 클릭 시 하위 디렉토리 로드
             folderElement.onclick = async () => {
                 await fetchFolders(folder.name);
-
-                // 여기서 선택 폴더를 지정하도록 수정
                 selectFolder(folder.id, folder.name, data.current_path);
             };
 
@@ -82,13 +88,83 @@ function selectFolder(folderId, folderName, currentPath) {
     }
 
     if (selectedPathDisplayElement) {
-        const fullPath = currentPath === '/' ? `/${folderName}` : `${currentPath}/${folderName}`;
-        selectedPathDisplayElement.value = fullPath;
+        let fullPath;
+        if (folderId === '0') {
+            fullPath = '/';
+        } else {
+            // 현재 경로가 루트가 아니라면 현재 경로를 기준으로 새 경로 생성
+            fullPath = currentPath === '/' ? `/${folderName}` : `${currentPath}/${folderName}`;
+        }
+
+        selectedPathDisplayElement.value = fullPath.replace('//', '/'); // 중복 슬래시 제거
     } else {
         console.error('selectedPathDisplay element not found.');
         return;
     }
 }
+
+// 페이지 로드 후 초기 설정
+document.addEventListener('DOMContentLoaded', async function() {
+    const selectedPathDisplayElement = document.getElementById('selectedPathDisplay');
+    await fetchFolders(selectedPathDisplayElement.value); // 페이지 로드 시 기본 폴더의 내용을 로드
+    await fetchTasks(); // 작업 목록을 가져옴
+
+    setInterval(fetchTasks, 600000); // 주기적으로 작업 목록을 갱신
+
+    // 작업추가 (addTaskForm.onsubmit)
+    document.getElementById('addTaskForm').onsubmit = async function (e) {
+        e.preventDefault();
+        const loadingIcon = document.getElementById('loadingIcon');
+        loadingIcon.style.display = 'inline-block'; // 로딩 아이콘 표시
+
+        const selectedPathDisplay = document.getElementById('selectedPathDisplay').value;
+    
+        // 루트 폴더에 다운로드 시도하는 경우 경고 표시
+        if (selectedPathDisplay.value === '/' || selectedPathDisplay.value === '') {
+            alert("Cannot download to the root folder. Please select another folder.");
+            loadingIcon.style.display = 'none';
+            return;  // 여기서 반환하여 작업이 중단되도록 합니다.
+        }
+
+        const urls = document.getElementById('urls').value.split('\n'); // 엔터로 구분된 URL들
+        const wp_path_id = document.getElementById('selectedPath').value;
+
+        if (!urls || !wp_path_id) {
+            alert("URL과 폴더 ID를 확인하세요.");
+            loadingIcon.style.display = 'none';
+            return;
+        }
+    
+        for (const url of urls) {
+            const response = await fetch('/tasks/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ urls: url, wp_path_id: wp_path_id }) // 폴더 ID와 함께 전송
+            });
+    
+            const result = await response.json();
+    
+            if (result.errno === 911) {
+                alert("공식 웹으로 1회 오프라인 다운로드를 시도하여 Captcha를 해지하세요.");
+                loadingIcon.style.display = 'none';
+                return;
+            }
+    
+            if (!response.ok) {
+                alert(`Failed to add task. Server responded with status: ${response.status}`);
+                loadingIcon.style.display = 'none';
+                return;
+            }
+        }
+    
+        document.getElementById('urls').value = '';
+        await fetchTasks();
+        loadingIcon.style.display = 'none'; // 로딩 아이콘 숨기기
+    
+        // 폴더 목록을 닫고 기본 폴더로 리셋
+        document.getElementById('folderListContainer').style.display = 'none'; // 폴더 목록 닫기
+    };
+});
 
 // 폴더 선택 확인: 
 //  - /get_folder_id 경로로 GET 요청을 보내 현재 폴더의 ID를 가져옴.
@@ -190,62 +266,6 @@ async function clearCompletedTasks() {
 
     clearLoadingIcon.style.display = 'none'; // 작업 완료 후 로딩 아이콘 숨기기
 }
-
-document.addEventListener('DOMContentLoaded', async function() {
-    document.getElementById('selectedPathDisplay').value = "{{ default_download_path_name }}"; // 페이지 로드 시 기본 다운로드 경로를 표시
-    await fetchFolders('/'); // 루트 디렉토리의 폴더 목록을 가져옴
-    await fetchTasks(); // 작업 목록을 가져옴
-
-    setInterval(fetchTasks, 600000); // 주기적으로 작업 목록을 갱신(60분)
-
-    // 작업추가 (addTaskForm.onsubmit)
-    document.getElementById('addTaskForm').onsubmit = async function (e) {
-        e.preventDefault();
-        const loadingIcon = document.getElementById('loadingIcon');
-        loadingIcon.style.display = 'inline-block'; // 로딩 아이콘 표시
-    
-        const urls = document.getElementById('urls').value.split('\n'); // 엔터로 구분된 URL들
-        //const urls = document.getElementById('urls').value;
-        const wp_path_id = document.getElementById('selectedPath').value;
-    
-        if (!urls || !wp_path_id) {
-            alert("URL과 폴더 ID를 확인하세요.");
-            loadingIcon.style.display = 'none';
-            return;
-        }
-    
-        for (const url of urls) {
-            const response = await fetch('/tasks/add', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ urls: url, wp_path_id: wp_path_id }) // 폴더 ID와 함께 전송
-            });
-    
-            const result = await response.json();
-    
-            if (result.errno === 911) {
-                alert("공식 웹으로 1회 오프라인 다운로드를 시도하여 Captcha를 해지하세요.");
-                loadingIcon.style.display = 'none';
-                return;
-            }
-    
-            if (!response.ok) {
-                alert(`Failed to add task. Server responded with status: ${response.status}`);
-                loadingIcon.style.display = 'none';
-                return;
-            }
-        }
-    
-        document.getElementById('urls').value = '';
-        await fetchTasks();
-        loadingIcon.style.display = 'none'; // 로딩 아이콘 숨기기
-    
-        // 폴더 목록을 닫고 기본 폴더로 리셋
-        document.getElementById('folderListContainer').style.display = 'none'; // 폴더 목록 닫기
-        document.getElementById('selectedPathDisplay').value = defaultDownloadPathName;  // 기본 경로로 설정
-        document.getElementById('selectedPath').value = defaultDownloadPathId;
-    };
-});
 
 // Remove 버튼 클릭시 팝업 메뉴를 보여주는 함수
 function showRemoveOptions(taskId) {
