@@ -1,0 +1,142 @@
+.custom-title {
+    font-family: "Ubuntu", sans-serif;
+    font-weight: 700;
+    font-style: italic;
+    /* text-decoration: underline; */
+    color: #007BFF;
+    text-shadow: 2px 2px #ddd;
+    text-align: center;
+}
+.custom-small-title {
+    font-family: "Ubuntu", sans-serif;
+    font-weight: 500;
+    font-style: italic;
+    text-decoration: underline;
+    /* color: #007BFF;
+    text-shadow: 2px 2px #ddd; */
+}
+body {
+    font-family: "Ubuntu", sans-serif;
+    font-weight: 400;
+    margin: 20px;
+}
+.progress-bar {
+    /* background-color: #1e90ff;*/
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color:  #696969; /* 짙은 회색 */
+    font-weight: normal; /* Bold 제거 */
+    text-align: center; /* 텍스트 중앙 정렬 */
+    overflow: visible; /* 텍스트 잘리지 않도록 설정 */
+}
+.progress-bar-container {
+    height: 30px; /* 높이를 30px로 조정 */
+    position: relative; /* span을 중앙에 배치하기 위해 필요 */
+}
+.progress-bar span {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+.complete {
+    color: #696969; /* Dark gray */
+}
+.running {
+    color: #1e90ff; /* Dark blue */
+}
+.table th, .table td {
+    vertical-align: middle;
+    padding: 5px; /* 패딩을 줄여서 세로 길이를 조정 */
+}
+.btn-refresh {
+    margin-bottom: 10px;
+    background-color: #add8e6; /* 옅은 블루 */
+    border-color: #add8e6; /* 옅은 블루 */
+    color: inherit; /* 텍스트 색상 상속 */
+}
+.btn-clear {
+    margin-bottom: 10px;
+    background-color: #f5deb3; /* 옅은 갈색 */
+    border-color: #f5deb3; /* 옅은 갈색 */
+    color: inherit; /* 텍스트 색상 상속 */
+}
+.btn-refresh:hover {
+    background-color: #1e90ff; /* 짙은 블루 */
+    border-color: #1e90ff;
+    color: #fff; /* 텍스트 색상을 흰색으로 변경 */
+}
+.btn-clear:hover {
+    background-color: #8B4513; /* 짙은 갈색 */
+    border-color: #8B4513;
+    color: #fff; /* 텍스트 색상을 흰색으로 변경 */
+}
+.btn-secondary {
+    margin: 0; /* 마진 제거 */
+    align-self: center; /* 버튼을 세로 가운데 정렬 */
+}
+#urls {
+    height: 100px; /* 입력폼의 세로 길이 조정 */
+}
+.table-responsive {
+    max-height: 750px; /* 원하는 높이로 설정 */
+    overflow-y: auto;
+}
+.table-responsive thead {
+    position: sticky;
+    top: 0;
+    z-index: 1000; /* 테이블 헤더가 다른 요소 위에 오도록 설정 */
+    background-color: #fff; /* 테이블 헤더 배경색 */
+}
+.dashboard {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background-color: transparent;
+}
+.dashboard div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.table {
+    table-layout: fixed; /* 테이블 레이아웃을 고정 */
+    width: 100%; /* 테이블 전체 너비 */
+}
+.table th, .table td {
+    white-space: nowrap; /* 텍스트 줄바꿈 방지 */
+    overflow: hidden; /* 넘치는 텍스트 숨김 */
+    text-overflow: ellipsis; /* 넘치는 텍스트를 생략 부호(...)로 표시 */
+    vertical-align: middle; /* 텍스트 세로 정렬 */
+}
+.table th:nth-child(1), .table td:nth-child(1) {
+    width: 25%; /* 첫 번째 열의 최대 너비 20%로 설정 */
+}
+.folder-explorer {
+    margin: 20px 0;
+}
+.folder-item {
+    cursor: pointer;
+    padding: 5px;
+    border-bottom: 1px solid #ccc;
+}
+.folder-item:hover {
+    background-color: #f0f0f0;
+}
+.folder-list {
+    margin-top: 10px;
+    border: 1px solid #ccc;
+    padding: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+    background-color: #f9f9f9;
+}
+
+.folder-item {
+    padding: 5px;
+    cursor: pointer;
+}
+
+.folder-item:hover {
+    background-color: #e9e9e9;
+}
