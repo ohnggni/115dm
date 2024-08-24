@@ -72,6 +72,7 @@ def explore_folder(folder_id):
 
     current_path = folder_id_to_name[folder_id]
     build_folder_mapping(current_path)
+    save_mapping_to_file() # 폴더 매핑 정보를 저장합니다.
 
 def get_full_folder_path(folder_id):
     """ 주어진 폴더 ID에 대한 전체 경로를 반환합니다. """
@@ -132,24 +133,67 @@ def list_folders():
         logging.error(f"Error fetching folder list: {e}")
         return jsonify({'error': 'Failed to fetch folders'}), 500
 
-@app.route('/folders', methods=['POST']) # 폴더를 변경하고 그 위치의 폴더 목록을 가져오는 기능을 수행
+@app.route('/folders', methods=['POST'])
 def change_directory():
     data = request.json
     target_folder_name = data.get('folder_name')
 
-    if target_folder_name == '..':
+    try:
+        if target_folder_name == '..':
+            # 현재 디렉토리 정보를 가져옴
+            current_path = fs.getcwd()
+            logging.info(f"Current path: {current_path}")
+
+            # 현재 경로에서 마지막 폴더 이름을 제거하여 상위 폴더 경로를 만듦
+            parent_path = '/'.join(current_path.rstrip('/').split('/')[:-1])
+            if not parent_path:
+                parent_path = '/'  # 루트 폴더로 이동
+
+            logging.info(f"Resolved parent path: {parent_path}")
+            fs.chdir(parent_path)
+            logging.info(f"Changed directory to parent path: {parent_path}")
+
+        else:
+            # 특정 폴더로 이동
+            fs.chdir(target_folder_name)
+            logging.info(f"Changed directory to: {target_folder_name}")
+
+        # 현재 경로 및 하위 폴더 목록을 반환
         current_path = fs.getcwd()
-        parent_path = '/'.join(current_path.strip('/').split('/')[:-1])
-        fs.chdir('/' + parent_path)
-    else:
-        fs.chdir(target_folder_name)
+        folders = fs.listdir_attr(path=current_path)
+        # logging.info(f"Folders in new path: {folders}")
 
-    current_path = fs.getcwd()
-    build_folder_mapping(current_path)  # 현재 디렉토리의 매핑 데이터를 구축
+        # 새로 이동한 폴더의 parent ID 확인
+        current_folder_id = fs.getcid()
+        new_folder_attrs = fs.listdir_attr(current_path)
+        parent_folder_id = '0'
+        for attr in new_folder_attrs:
+            # logging.info(f"Checking new folder attribute: {attr}")
+            # 각 속성의 ancestors를 탐색하여 현재 폴더의 id와 일치하는 항목을 찾음
+            for ancestor in attr.get('ancestors', []):
+                # logging.info(f"Checking new ancestor: {ancestor}")
+                if str(ancestor['id']) == str(current_folder_id):
+                    parent_folder_id = str(ancestor['parent_id'])
+                    logging.info(f"Found matching ancestor in new path. Parent ID: {parent_folder_id}")
+                    break
 
-    folders = fs.listdir_attr(path=current_path)
-    folder_list = [{'id': str(folder['id']), 'name': folder['name']} for folder in folders if folder.get('is_directory')]
-    return jsonify({'folders': folder_list, 'current_path': current_path})
+            # parent_id를 찾았다면 더 이상 탐색하지 않음
+            if parent_folder_id != '0':
+                break
+        
+        logging.info(f"Final Parent folder ID after change: {parent_folder_id}")
+        
+        # 폴더 매핑 정보를 업데이트하고 저장합니다.
+        folder_id_to_name[str(current_folder_id)] = current_path
+        save_mapping_to_file()
+
+        folder_list = [{'id': str(folder['id']), 'name': folder['name']} for folder in folders if folder.get('is_directory')]
+
+        return jsonify({'folders': folder_list, 'current_path': current_path, 'parent_folder_id': parent_folder_id})
+
+    except Exception as e:
+        logging.error(f"Error fetching folders: {e}")
+        return jsonify({'error': 'Failed to fetch folders', 'message': str(e)}), 500
 
 @app.route('/get_folder_id', methods=['GET'])
 def get_folder_id():
@@ -164,15 +208,18 @@ def get_full_path_name():
     try:
         data = request.json
         folder_id = data.get('folder_id')
-        
-        current_path = fs.getcwd() # 현재 디렉토리의 경로 가져오기       
-        folder_name = folder_id_to_name.get(folder_id, 'N/A')
-        
-        if current_path.endswith(folder_name): # 전체 경로 이름을 생성, 중복 방지
-            full_path_name = current_path  # 중복 방지
+
+        # 루트 폴더인 경우 경로를 '/'로 설정
+        if folder_id == '0':
+            full_path_name = '/'
         else:
+            current_path = fs.getcwd()
+            folder_name = folder_id_to_name.get(folder_id, '')
             full_path_name = f"{current_path}/{folder_name}".replace('//', '/')
-        
+
+            if full_path_name.endswith('/'):
+                full_path_name = full_path_name.rstrip('/')
+
         return jsonify({'full_path_name': full_path_name})
 
     except Exception as e:
@@ -341,7 +388,7 @@ def list_tasks():
 
         folder_id = task_times[task_id].get('folder_id', 'N/A')
         
-        if folder_id not in folder_id_to_name:
+        if folder_id not in folder_id_to_name:  # 기존 매핑에 없을 경우 매핑을 시도합니다.
             try:
                 explore_folder(folder_id)  # 탐색 시 해당 폴더의 매핑 수행
             except Exception as e:
