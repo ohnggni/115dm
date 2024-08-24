@@ -114,8 +114,14 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <!-- 자바스크립트 변수에 템플릿 데이터를 전달 -->
     <script type="text/javascript">
-        const defaultDownloadPathName = "{{ default_download_path_name }}";
-        const defaultDownloadPathId = "{{ default_download_path_id }}";
+        document.addEventListener('DOMContentLoaded', function() {
+            const defaultDownloadPathName = "{{ default_download_path_name }}";
+            const selectedPathDisplayElement = document.getElementById('selectedPathDisplay');
+            const selectedPathElement = document.getElementById('selectedPath');
+    
+            selectedPathDisplayElement.value = defaultDownloadPathName;  // 페이지 로드 시 기본 경로 설정
+            selectedPathElement.value = "{{ default_download_path_id }}"; // 기본 폴더 ID 설정
+        });
     </script>
 </body>
 </html>
