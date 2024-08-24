@@ -28,35 +28,28 @@ async function fetchFolders(targetFolderName) {
         const folderListElement = document.getElementById('folderList');
         folderListElement.innerHTML = '';
 
-        // 상위 폴더로 이동 버튼 처리
         if (data.current_path !== '/') {
             const parentElement = document.createElement('div');
             parentElement.innerHTML = `<i class="bi bi-folder"></i> ..`;
             parentElement.classList.add('folder-item');
             parentElement.onclick = async () => {
                 await fetchFolders('..');
-                
-                // 상위 폴더로 이동 시 새로운 경로를 불러옴
-                const newPathResponse = await fetch('/get_full_path_name', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ folder_id: data.parent_folder_id })
-                });
 
-                const newPathData = await newPathResponse.json();
-                const fullPath = newPathData.full_path_name !== 'N/A' ? newPathData.full_path_name : '/';
-                
-                document.getElementById('selectedPathDisplay').value = fullPath;
-                document.getElementById('selectedPath').value = data.parent_folder_id || '0';
+                // 현재 경로에서 마지막 폴더를 제거한 후, 루트 처리
+                let newPath = data.current_path.split('/').slice(0, -1).join('/');
+                if (newPath === '') {
+                    newPath = '/';
+                }
+
+                document.getElementById('selectedPathDisplay').value = newPath;
+                document.getElementById('selectedPath').value = data.parent_folder_id;
             };
             folderListElement.appendChild(parentElement);
         } else {
-            // 루트 폴더에 있을 때
             document.getElementById('selectedPathDisplay').value = '/';
-            document.getElementById('selectedPath').value = '0'; // 루트 폴더 ID 설정
+            document.getElementById('selectedPath').value = '0';
         }
 
-        // 폴더 목록 표시
         data.folders.forEach(folder => {
             const folderElement = document.createElement('div');
             folderElement.innerHTML = `<i class="bi bi-folder"></i> ${folder.name}`;
@@ -120,7 +113,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         const selectedPathDisplay = document.getElementById('selectedPathDisplay').value;
     
         // 루트 폴더에 다운로드 시도하는 경우 경고 표시
-        if (selectedPathDisplay.value === '/' || selectedPathDisplay.value === '') {
+        if (selectedPathDisplay.value === '/' || selectedPathDisplay.value === '' || selectedPath.value === '0') {
             alert("Cannot download to the root folder. Please select another folder.");
             loadingIcon.style.display = 'none';
             return;  // 여기서 반환하여 작업이 중단되도록 합니다.
