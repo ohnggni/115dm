@@ -23,7 +23,7 @@
         <!-- 기존 form에 스타일 추가 및 구조 개선 -->
         <form id="addTaskForm" class="p-3 rounded shadow-sm bg-light">
             <div class="form-group">
-                <label for="folderSelectToggle" style="font-weight: bold;">Select Folder to Save:</label>
+                <label for="folderSelectToggle" style="font-weight: bold;">Select Folder to Save:&nbsp;<span id="folderLoadingIcon" class="spinner-border spinner-border-sm text-primary" role="status" style="display: none;"></span></label>
                 <!-- 폴더 선택 경로를 표시하고 저장하기 위한 요소 -->
                 <input type="hidden" id="selectedPath" name="selectedPath" value="{{ default_download_path_id }}">
                 <input type="text" id="selectedPathDisplay" class="form-control" readonly onclick="toggleFolderList()" value="{{ default_download_path_name }}">
