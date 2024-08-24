@@ -13,6 +13,9 @@ function toggleFolderList() {
 
 // 폴더 목록을 가져와서 표시
 async function fetchFolders(targetFolderName) {
+    const folderLoadingIcon = document.getElementById('folderLoadingIcon');
+    folderLoadingIcon.style.display = 'inline-block'; // 로딩 아이콘 표시
+
     try {
         const response = await fetch('/folders', {
             method: 'POST',
@@ -65,6 +68,8 @@ async function fetchFolders(targetFolderName) {
 
     } catch (error) {
         console.error('Error fetching folders:', error);
+    } finally {
+        folderLoadingIcon.style.display = 'none'; // 작업 완료 후 로딩 아이콘 숨기기
     }
 }
 
