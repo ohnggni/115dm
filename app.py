@@ -495,16 +495,16 @@ def delete_task_and_folder(task_id):
                     logging.info(f"Successfully deleted folder with ID: {file_id} under folder ID: {wp_path_id}")
                 else:
                     logging.error(f"Failed to delete folder. Response: {response.text}")
-                    return jsonify({'error': 'Failed to delete folder'}), 500
+                    # return jsonify({'error': 'Failed to delete folder'}), 500
 
             except Exception as e:
                 logging.error(f"Error occurred while trying to delete folder with ID: {file_id}, Error: {str(e)}")
-                return jsonify({'error': f"Exception occurred: {str(e)}"}), 500
+                # return jsonify({'error': f"Exception occurred: {str(e)}"}), 500
         else:
             logging.info(f"No folder associated with task ID: {task_id}, skipping folder deletion.")
-            return jsonify({'error': 'No associated folder found'}), 400
+            # return jsonify({'error': 'No associated folder found'}), 400
 
-        # 파일 삭제가 성공한 경우에만 작업 목록을 삭제합니다.
+        # 파일 삭제가 실패(폴더가 없어서)하더라도 작업목록은 삭제함
         offline_service.remove(task_id)
         remove_task_time(task_id)  # JSON 파일에서 해당 task_id 삭제
         logging.info(f"Task {task_id} removed from the offline service.")
