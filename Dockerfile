@@ -1,5 +1,5 @@
 # 베이스 이미지로 Alpine Linux 사용
-FROM python:3.11-alpine
+FROM python:3.12-alpine
 
 # 작업 디렉토리 설정
 WORKDIR /app
