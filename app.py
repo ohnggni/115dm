@@ -407,7 +407,7 @@ def list_tasks():
                     folder_attrs = fs.listdir_attr(f"/{folder_name}")
                     for attr in folder_attrs:
                         if attr['name'] == target_name:
-                            completed_time = attr['etime']
+                            completed_time = datetime.fromtimestamp(attr['mtime']) # 속성변경 대응
                             task_times[task_id]['completed_time'] = completed_time.isoformat()
                             break
                     else:
