@@ -2,3 +2,4 @@ Flask==2.0.2
 Werkzeug==2.0.2
 python-115>=0.0.9.8.8
 requests
+p115client>=0.0.5.5.4
