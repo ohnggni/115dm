@@ -58,15 +58,15 @@ def update_and_save_folder_mapping(items):
     if updated:
         save_to_json(FOLDER_MAPPING_FILE, FOLDER_MAPPING)
 
+def get_status_string(status_code):
+    status_map = {0: "대기중", 1: "진행중", 2: "완료", -1: "실패"}
+    return status_map.get(status_code, "알 수 없음")
+
 def format_size(size_bytes):
     if not isinstance(size_bytes, (int, float)) or size_bytes == 0: return "0 B"
     size_name = ("B", "KB", "MB", "GB", "TB"); i = int(abs(size_bytes).bit_length() / 10)
     p = 1024 ** i; s = round(size_bytes / p, 2)
     return f"{s} {size_name[i]}"
-
-def get_status_string(status_code):
-    status_map = {0: "대기중", 1: "진행중", 2: "완료", -1: "실패"}
-    return status_map.get(status_code, "알 수 없음")
 
 # --- 3. Flask 라우팅 ---
 @app.route('/')
@@ -97,7 +97,7 @@ def get_folders_handler():
             if current_cid != '0':
                 attr = tool.get_attr(client, id=current_cid)
                 next_cid = str(attr.get("parent_id", "0"))
-        elif target_folder_name:
+        elif target_folder_name and not os.path.ismount(target_folder_name):
             items = list(tool.iterdir(client, cid=current_cid))
             update_and_save_folder_mapping(items)
             for item in items:
@@ -128,56 +128,48 @@ def get_tasks():
         processed_tasks, running_count, complete_count = [], 0, 0
         
         for task in api_tasks:
-            # 개별 작업 처리 중 오류가 발생해도 전체가 멈추지 않도록 수정
-            try:
-                task_id = task.get('info_hash')
-                if not task_id: continue
-
-                status_str = get_status_string(task.get('status'))
-                if status_str == "완료": complete_count += 1
-                elif status_str == "진행중": running_count += 1
-
-                created_time = ""
-                if add_time := task.get('add_time'):
-                    created_time = datetime.fromtimestamp(add_time).strftime('%y/%m/%d %H:%M')
-                
-                completed_time = ""
-                if status_str == "완료" and (last_update := task.get('last_update')):
-                    completed_time = datetime.fromtimestamp(last_update).strftime('%y/%m/%d %H:%M')
-                
-                processed_tasks.append({
-                    'task_id': task_id,
-                    'name': task.get('name'),
-                    'status': status_str,
-                    'percent': f"{task.get('percentDone', 0):.1f}",
-                    'size': format_size(task.get('size', 0)),
-                    'created_time': created_time,
-                    'completed_time': completed_time,
-                    'folder_name': FOLDER_MAPPING.get(str(task.get('wp_path_id')), 'N/A')
-                })
-            except Exception as e:
-                logging.error(f"개별 작업 처리 중 오류 발생. 작업 데이터: {task}, 오류: {e}", exc_info=True)
-
+            status_str = get_status_string(task.get('status'))
+            if status_str == "완료": complete_count += 1
+            elif status_str == "진행중": running_count += 1
+            
+            created_time = ""
+            if add_time := task.get('add_time'):
+                created_time = datetime.fromtimestamp(add_time).strftime('%y/%m/%d %H:%M')
+            
+            processed_tasks.append({
+                'task_id': task.get('info_hash'),
+                'name': task.get('name'),
+                'status': status_str,
+                'percent': f"{task.get('percentDone', 0):.1f}",
+                'size': format_size(task.get('size', 0)),
+                'created_time': created_time,
+                'completed_time': "", # 요청대로 종료 시간 제거
+                'folder_name': FOLDER_MAPPING.get(str(task.get('wp_path_id')), 'N/A')
+            })
         return jsonify({'tasks': processed_tasks, 'running_count': running_count, 'complete_count': complete_count})
     except Exception as e:
-        logging.error(f"전체 작업 목록 가져오기 오류: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/tasks/add', methods=['POST'])
 def add_tasks():
     if not client: return jsonify({"error": "클라이언트가 초기화되지 않았습니다."}), 500
     data = request.json
-    url, folder_id = data.get('urls'), data.get('wp_path_id')
-    if not url or not folder_id or folder_id == '0':
+    urls_string = data.get('urls')
+    folder_id = data.get('wp_path_id')
+    
+    if not urls_string or not folder_id or folder_id == '0':
         return jsonify({"error": "유효한 URL과 저장할 폴더를 지정해야 합니다."}), 400
+        
     try:
-        response = client.request(
-            "https://115.com/web/lixian/?ct=lixian&ac=add_task_url", "POST",
-            data={"url": url, "wp_path_id": folder_id, "uid": UID}
-        )
+        urls_to_add = [u.strip() for u in urls_string.replace(',', '\n').split('\n') if u.strip()]
+        
+        url_payload = {f"url[{i}]": u for i, u in enumerate(urls_to_add)}
+        payload = {"wp_path_id": folder_id, "uid": UID, **url_payload}
+        
+        response = client.request("https://115.com/web/lixian/?ct=lixian&ac=add_task_urls", "POST", data=payload)
+        
         return jsonify(response)
     except Exception as e: 
-        logging.error(f"작업 추가 중 예외 발생: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/tasks/<task_id>', methods=['DELETE'])
@@ -191,10 +183,6 @@ def delete_task(task_id):
     except Exception as e:
         return jsonify({'error': f"Failed to delete task {task_id}"}), 500
 
-@app.route('/tasks/<task_id>/delete_with_folder', methods=['DELETE'])
-def delete_task_and_folder(task_id):
-    return delete_task(task_id)
-
 @app.route('/tasks/clear_completed', methods=['POST'])
 def clear_completed_tasks():
     if not client: return jsonify({"error": "클라이언트가 초기화되지 않았습니다."}), 500
@@ -207,3 +195,7 @@ def clear_completed_tasks():
 if __name__ == '__main__':
     if client: app.run(host='0.0.0.0', port=5000)
     else: print("앱을 실행할 수 없습니다. 환경변수를 확인하세요.")
+    
+@app.route('/tasks/<task_id>/delete_with_folder', methods=['DELETE'])
+def delete_task_and_folder(task_id):
+    return delete_task(task_id)
